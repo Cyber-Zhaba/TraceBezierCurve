@@ -1,8 +1,11 @@
 #include <iostream>
 #include "bezier.h"
+#include <string>
 
-int main() {
-    freopen("../out.txt", "w", stdout);
+using std::string;
+
+void write2file(string filename) {
+    freopen(filename.data(), "w", stdout);
     Point start(0, 0);
     Point end(5, 5.5);
 
@@ -13,4 +16,8 @@ int main() {
     for (auto& e : curve) {
         std::cout << e.x << ' ' << e.y << '\n';
     }
+}
+
+int main() {
+    write2file("out");
 }
