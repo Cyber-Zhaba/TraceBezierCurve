@@ -93,11 +93,13 @@ long double dist(Point a, Point b) {
     return std::sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 }
 
-//TODO use look up table (LUT)
 // Binomial coefficient with caching
 class BinomCache {
-    using Key = std::pair<int64_t, int64_t>;
+    static constexpr std::size_t MaxLUTSize = MaxPoints + 1;
 
+    std::array<std::array<std::optional<int64_t>, MaxLUTSize>, MaxLUTSize> lut_{};
+
+    using Key = std::pair<int64_t, int64_t>;
     alignas(std::max_align_t) std::byte buffer_[BinomCacheBufferSize];
     std::pmr::monotonic_buffer_resource resource_{buffer_, BinomCacheBufferSize};
     std::pmr::unordered_map<Key, int64_t> map_{&resource_};
@@ -111,22 +113,31 @@ public:
     }
 
     std::optional<int64_t> get(int64_t n, int64_t k) {
-        auto it = map_.find({n, k});
-        if (it != map_.end()) return it->second;
-        return std::nullopt;
+        if (n < MaxLUTSize && k < MaxLUTSize) {
+            return lut_[n][k];
+        } else {
+            auto it = map_.find({n, k});
+            if (it != map_.end()) return it->second;
+            return std::nullopt;
+        }
     }
 
     void put(int64_t n, int64_t k, int64_t value) {
-        map_[{n, k}] = value;
+        if (n < MaxLUTSize && k < MaxLUTSize) {
+            lut_[n][k] = value;
+        } else {
+            map_[{n, k}] = value;
+        }
     }
 };
 
 int64_t binom(int64_t n, int64_t k) {
+    if (k > n / 2) k = n - k;
+
     auto& cache = BinomCache::instance();
     if (auto val = cache.get(n, k))
         return *val;
 
-    if (k > n / 2) k = n - k;
     uint64_t result = 1;
     for (int64_t i = 1; i <= k; ++i) {
         result *= (n - (k - i));
