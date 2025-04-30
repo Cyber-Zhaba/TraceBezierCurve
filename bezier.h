@@ -16,7 +16,7 @@
 // === Max buffer size for arrays located on stack ===
 
 constexpr std::size_t BinomCacheBufferSize = 1024;
-constexpr std::size_t MaxPoints = 16;
+constexpr std::size_t MaxPoints = 128;
 constexpr std::size_t MaxCurvePoints = 1024;
 
 // === Point2D struct ===
@@ -93,6 +93,7 @@ long double dist(Point a, Point b) {
     return std::sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 }
 
+//TODO use look up table (LUT)
 // Binomial coefficient with caching
 class BinomCache {
     using Key = std::pair<int64_t, int64_t>;
@@ -125,11 +126,10 @@ int64_t binom(int64_t n, int64_t k) {
     if (auto val = cache.get(n, k))
         return *val;
 
+    if (k > n / 2) k = n - k;
     uint64_t result = 1;
-    for (uint64_t i = k + 1; i <= n; ++i) {
-        result *= i;
-    }
-    for (uint64_t i = 1; i <= n - k; ++i) {
+    for (int64_t i = 1; i <= k; ++i) {
+        result *= (n - (k - i));
         result /= i;
     }
 
@@ -138,7 +138,20 @@ int64_t binom(int64_t n, int64_t k) {
     return final;
 }
 
-//TODO find better approach
+// Fast pow
+long double pow(long double base, int64_t exp) {
+    long double result = 1;
+    while (exp > 0) {
+        if (exp % 2 == 1) {
+            result *= base;
+        }
+        base *= base;
+        exp /= 2;
+    }
+    return result;
+}
+
+//TODO find better approach with std::minstd_rand
 long double random_0_1() {
     static thread_local std::mt19937 gen(std::random_device{}());
     static thread_local std::uniform_real_distribution<double> dist(0.0, 1.0);
@@ -147,9 +160,17 @@ long double random_0_1() {
 
 // Calculation of function B of one coordinate
 long double z(long double t, long double Point::* member, const std::array<Point, MaxPoints>& points, std::size_t number_of_points) {
+    long double t_pow = 1.0;
+    long double one_minus_t = 1.0 - t;
+    long double one_minus_t_pow = pow(one_minus_t, number_of_points - 1);
+
     long double sum = 0;
     for (std::size_t k = 0; k < number_of_points; ++k) {
-        sum += points[k].*member * binom(number_of_points - 1, k) * std::pow(t, k) * std::pow(1 - t, number_of_points - 1 - k);
+        long double coeff = binom(number_of_points - 1, k);
+        sum += points[k].*member * coeff * t_pow * one_minus_t_pow;
+        t_pow *= t;
+        if (k + 1 < number_of_points)
+            one_minus_t_pow /= one_minus_t;
     }
     return sum;
 }
