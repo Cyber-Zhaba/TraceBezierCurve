@@ -1,5 +1,5 @@
-#ifndef TRACEBEZIERCURVE_BEZIER_H
-#define TRACEBEZIERCURVE_BEZIER_H
+#ifndef TRACE_BEZIER_CURVE_BEZIER_H
+#define TRACE_BEZIER_CURVE_BEZIER_H
 
 // === Includes ===
 
@@ -34,18 +34,38 @@ struct Point {
 class Bezier {
 public:
     // Max buffer size for arrays located on stack
-    static constexpr std::size_t MaxPoints = 1024;
+    static constexpr std::size_t MaxMidPoints = 1024;
     static constexpr std::size_t MaxCurvePoints = 10000;
+
+    // Trace Bezier curve
+    static void Trace(
+        Point end,
+        uint64_t curve_points,                     // Number of points to generate
+        std::array<Point, MaxCurvePoints>& curve,  // Curve buffer
+        std::size_t num_mid_points = 5,            // Number of mid points
+        long double aspect = 0.2,                  // Ration between distance from start to end and beta spread
+        long double alpha_jitter = 0.1             // Funny word
+    ) {
+        // Assume that user is smart enough to not use more points than allowed
+        // Otherwise, you should uncomment assertions
+        // assert(num_mid_points <= MaxMidPoints);
+        // assert(curve_points <= MaxCurvePoints);
+
+        Point start(0, 0);
+        std::array<Point, MaxMidPoints> points{};
+        GRMP(start, end, num_mid_points, points, aspect, alpha_jitter);
+        GetCurve(points, curve, num_mid_points, curve_points);
+    }
 
     // Generate random points between start and end
     static void GRMP(
-        Point start,
-        Point end,
-        std::size_t num_mid_points,
-        std::array<Point, MaxPoints>& points,
-        long double aspect = 1.0,
-        long double alpha_jitter = 0.1
-                ) {
+        Point start,                              // Start point
+        Point end,                                // End point
+        std::size_t num_mid_points,               // Number of mid points to generate
+        std::array<Point, MaxMidPoints>& points,  // Points buffer
+        long double aspect = 1.0,                 // Ration between distance from start to end and beta spread
+        long double alpha_jitter = 0.1            // Funny word
+    ) {
         long double length = dist(start, end);
 
         Point d = (end - start) / length;
@@ -67,14 +87,13 @@ public:
 
     // Calculate discrete Bezier curve
     static void GetCurve(
-        const std::array<Point,
-        MaxPoints>& points,
-        std::array<Point, MaxCurvePoints>& curve,
-        std::size_t number_of_mid_points,
-        uint64_t curve_points = 100
-                ) {
+        const std::array<Point, MaxMidPoints>& points,  // Points buffer
+        std::array<Point, MaxCurvePoints>& curve,       // Curve buffer
+        std::size_t number_of_mid_points,               // Number of mid points
+        uint64_t curve_points = 100                     // Number of points to generate
+    ) {
         for (uint64_t i = 0; i < curve_points; ++i) {
-            long double t = (long double) i / (curve_points - 1);
+            const long double t = static_cast<long double>(i) / (curve_points - 1);
             curve[i] = B(t, points, number_of_mid_points);
         }
     }
@@ -125,7 +144,7 @@ private:
     }
 
     // Magic happens here
-    static long double z(long double t, long double Point::* member, const std::array<Point, MaxPoints>& points, std::size_t number_of_points) {
+    static long double z(long double t, long double Point::* member, const std::array<Point, MaxMidPoints>& points, std::size_t number_of_points) {
         long double t_pow = 1.0;
         long double one_minus_t = 1.0 - t;
         long double one_minus_t_pow = pow(one_minus_t, number_of_points - 1);
@@ -142,7 +161,7 @@ private:
     }
 
     // Bezier function by parameter t
-    static Point B(long double t, const std::array<Point, MaxPoints>& points, std::size_t number_of_points) {
+    static Point B(long double t, const std::array<Point, MaxMidPoints>& points, std::size_t number_of_points) {
         return {
             z(t, &Point::x, points, number_of_points + 2),
             z(t, &Point::y, points, number_of_points + 2)
@@ -151,7 +170,7 @@ private:
 
     // Singleton class for binomial coefficient cache
     class BinomCache {
-        static constexpr std::size_t MaxLUTSize = MaxPoints + 1;
+        static constexpr std::size_t MaxLUTSize = MaxMidPoints + 1;
         std::array<std::array<std::optional<int64_t>, MaxLUTSize>, MaxLUTSize> lut_{};
 
         BinomCache() = default;
@@ -177,4 +196,4 @@ private:
     };
 };
 
-#endif //TRACEBEZIERCURVE_BEZIER_H
+#endif //TRACE_BEZIER_CURVE_BEZIER_H
