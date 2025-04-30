@@ -17,9 +17,9 @@ void write2file(string filename) {
     assert(curve_points <= MaxCurvePoints);
 
     std::array<Point, MaxPoints> points{};
-    generate_random_dots(start, end, mid_points, points, 0.2, 0.1);
+    Bezier::generate_random_dots(start, end, mid_points, points, 0.2, 0.1);
     std::array<Point, MaxCurvePoints> curve{};
-    get_curve(points, curve, mid_points, curve_points);
+    Bezier::get_curve(points, curve, mid_points, curve_points);
     for (auto& e : curve) {
         std::cout << e.x << ' ' << e.y << '\n';
     }
