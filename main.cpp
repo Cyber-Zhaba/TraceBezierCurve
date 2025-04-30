@@ -3,14 +3,11 @@
 
 int main() {
     freopen("../out.txt", "w", stdout);
-    std::vector<Point> points = {
-            {0, 0},
-            {1, 4},
-            {2, 1},
-            {3, 3},
-            {4, 2},
-            {3, 1}
-    };
+    Point start(0, 0);
+    Point end(5, 5.5);
+
+    std::vector<Point> points;
+    generate_random_dots(start, end, 5, points, 0.2, 0.1);
     std::vector<Point> curve;
     get_curve(points, curve);
     for (auto& e : curve) {
