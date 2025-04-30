@@ -1,0 +1,3 @@
+[submodule "DiscreteBezierCurve"]
+	path = DiscreteBezierCurve
+	url = git@github.com:Cyber-Zhaba/DiscreteBezierCurve.git
