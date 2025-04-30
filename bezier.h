@@ -8,16 +8,14 @@
 #include <cstdint>
 #include <cmath>
 #include <random>
-#include <algorithm>
 #include <optional>
 #include <unordered_map>
 #include <memory_resource>
 
 // === Max buffer size for arrays located on stack ===
 
-constexpr std::size_t BinomCacheBufferSize = 1024;
-constexpr std::size_t MaxPoints = 128;
-constexpr std::size_t MaxCurvePoints = 1024;
+constexpr std::size_t MaxPoints = 1024;
+constexpr std::size_t MaxCurvePoints = 10000;
 
 // === Point2D struct ===
 
@@ -77,16 +75,14 @@ struct Point {
 // === Sub functions ===
 
 // Hash function for std::pair
-namespace std {
-    template<>
-    struct hash<std::pair<int64_t, int64_t>> {
-        std::size_t operator()(const std::pair<int64_t, int64_t>& p) const noexcept {
-            std::size_t h1 = std::hash<int64_t>{}(p.first);
-            std::size_t h2 = std::hash<int64_t>{}(p.second);
-            return h1 ^ (h2 << 1);
-        }
-    };
-}
+template<>
+struct std::hash<std::pair<int64_t, int64_t>> {
+    std::size_t operator()(const std::pair<int64_t, int64_t>& p) const noexcept {
+        std::size_t h1 = std::hash<int64_t>{}(p.first);
+        std::size_t h2 = std::hash<int64_t>{}(p.second);
+        return h1 ^ (h2 << 1);
+    }
+};
 
 //TODO find better approach
 long double dist(Point a, Point b) {
@@ -99,11 +95,6 @@ class BinomCache {
 
     std::array<std::array<std::optional<int64_t>, MaxLUTSize>, MaxLUTSize> lut_{};
 
-    using Key = std::pair<int64_t, int64_t>;
-    alignas(std::max_align_t) std::byte buffer_[BinomCacheBufferSize];
-    std::pmr::monotonic_buffer_resource resource_{buffer_, BinomCacheBufferSize};
-    std::pmr::unordered_map<Key, int64_t> map_{&resource_};
-
     BinomCache() = default;
 
 public:
@@ -115,18 +106,13 @@ public:
     std::optional<int64_t> get(int64_t n, int64_t k) {
         if (n < MaxLUTSize && k < MaxLUTSize) {
             return lut_[n][k];
-        } else {
-            auto it = map_.find({n, k});
-            if (it != map_.end()) return it->second;
-            return std::nullopt;
         }
+        return std::nullopt;
     }
 
     void put(int64_t n, int64_t k, int64_t value) {
         if (n < MaxLUTSize && k < MaxLUTSize) {
             lut_[n][k] = value;
-        } else {
-            map_[{n, k}] = value;
         }
     }
 };
@@ -164,8 +150,8 @@ long double pow(long double base, int64_t exp) {
 
 //TODO find better approach with std::minstd_rand
 long double random_0_1() {
-    static thread_local std::mt19937 gen(std::random_device{}());
-    static thread_local std::uniform_real_distribution<double> dist(0.0, 1.0);
+    thread_local std::mt19937 gen(std::random_device{}());
+    thread_local std::uniform_real_distribution dist(0.0, 1.0);
     return dist(gen);
 }
 
