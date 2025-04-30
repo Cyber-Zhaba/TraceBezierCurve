@@ -1,7 +1,7 @@
 #ifndef TRACEBEZIERCURVE_BEZIER_H
 #define TRACEBEZIERCURVE_BEZIER_H
 
-// === LIBS ===
+// === Includes ===
 
 #include <array>
 #include <vector>
@@ -13,7 +13,13 @@
 #include <unordered_map>
 #include <memory_resource>
 
-// === Point struct ===
+// === Max buffer size for arrays located on stack ===
+
+constexpr std::size_t BinomCacheBufferSize = 1024;
+constexpr std::size_t MaxPoints = 16;
+constexpr std::size_t MaxCurvePoints = 1024;
+
+// === Point2D struct ===
 
 struct Point {
     long double x;
@@ -68,6 +74,9 @@ struct Point {
     }
 };
 
+// === Sub functions ===
+
+// Hash function for std::pair
 namespace std {
     template<>
     struct hash<std::pair<int64_t, int64_t>> {
@@ -84,13 +93,12 @@ long double dist(Point a, Point b) {
     return std::sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 }
 
+// Binomial coefficient with caching
 class BinomCache {
-    static constexpr std::size_t BufferSize = 1024 * 90;
-
     using Key = std::pair<int64_t, int64_t>;
 
-    alignas(std::max_align_t) std::byte buffer_[BufferSize];
-    std::pmr::monotonic_buffer_resource resource_{buffer_, BufferSize};
+    alignas(std::max_align_t) std::byte buffer_[BinomCacheBufferSize];
+    std::pmr::monotonic_buffer_resource resource_{buffer_, BinomCacheBufferSize};
     std::pmr::unordered_map<Key, int64_t> map_{&resource_};
 
     BinomCache() = default;
@@ -132,35 +140,51 @@ int64_t binom(int64_t n, int64_t k) {
 
 //TODO find better approach
 long double random_0_1() {
-    static thread_local std::mt19937 gen(std::random_device{}()); // Быстрый генератор (thread-local!)
+    static thread_local std::mt19937 gen(std::random_device{}());
     static thread_local std::uniform_real_distribution<double> dist(0.0, 1.0);
     return dist(gen);
 }
 
-long double z(long double t, long double Point::* member, const std::vector<Point>& points) {
+// Calculation of function B of one coordinate
+long double z(long double t, long double Point::* member, const std::array<Point, MaxPoints>& points, std::size_t number_of_points) {
     long double sum = 0;
-    std::size_t number_of_points = points.size();
     for (std::size_t k = 0; k < number_of_points; ++k) {
         sum += points[k].*member * binom(number_of_points - 1, k) * std::pow(t, k) * std::pow(1 - t, number_of_points - 1 - k);
     }
     return sum;
 }
 
-Point B(long double t, const std::vector<Point>& points) {
+// Function B for calculating the point on the curve according to the parameter t
+Point B(long double t, const std::array<Point, MaxPoints>& points, std::size_t number_of_points) {
     return {
-        z(t, &Point::x, points),
-        z(t, &Point::y, points)
+        z(t, &Point::x, points, number_of_points + 2),
+        z(t, &Point::y, points, number_of_points + 2)
     };
 }
 
-void get_curve(const std::vector<Point>& points, std::vector<Point>& curve, uint64_t num_points = 100) {
-    for (uint64_t i = 0; i < num_points; ++i) {
-        long double t = (long double) i / (num_points - 1);
-        curve.push_back(B(t, points));
+// Get a discrete curve
+void get_curve(
+        const std::array<Point,
+        MaxPoints>& points,
+        std::array<Point, MaxCurvePoints>& curve,
+        std::size_t number_of_mid_points,
+        uint64_t curve_points = 100
+                ) {
+    for (uint64_t i = 0; i < curve_points; ++i) {
+        long double t = (long double) i / (curve_points - 1);
+        curve[i] = B(t, points, number_of_mid_points);
     }
 }
 
-void generate_random_dots(Point start, Point end, std::size_t num_mid_points, std::vector<Point>& result, long double aspect = 1.0, long double alpha_jitter = 0.1) {
+// Generate random points for Bezier curve
+void generate_random_dots(
+        Point start,
+        Point end,
+        std::size_t num_mid_points,
+        std::array<Point, MaxPoints>& points,
+        long double aspect = 1.0,
+        long double alpha_jitter = 0.1
+                ) {
     long double length = dist(start, end);
 
     Point d = (end - start) / length;
@@ -169,15 +193,15 @@ void generate_random_dots(Point start, Point end, std::size_t num_mid_points, st
     long double spread = length * aspect;
     long double alpha_spray = (long double) 1 / (num_mid_points + 1);
 
-    result.push_back(start);
+    points[0] = start;
     for (std::size_t i = 0; i < num_mid_points; ++i) {
         long double alpha_noise = random_0_1() * alpha_jitter * (2 * alpha_spray) - alpha_spray * alpha_jitter;
         long double alpha = (long double) (i + 1) / (num_mid_points + 1) + alpha_noise;
         long double beta = random_0_1() * (2 * spread) - spread;
 
-        result.push_back(d * alpha * length + start + n * beta);
+        points[i + 1] = d * alpha * length + start + n * beta;
     }
-    result.push_back(end);
+    points[num_mid_points + 1] = end;
 }
 
 #endif //TRACEBEZIERCURVE_BEZIER_H
