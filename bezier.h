@@ -92,10 +92,11 @@ public:
         std::size_t number_of_mid_points,               // Number of mid points
         uint64_t curve_points = 100                     // Number of points to generate
     ) {
-        for (uint64_t i = 0; i < curve_points; ++i) {
-            const long double t = static_cast<long double>(i) / (curve_points - 1);
+        for (uint64_t i = 0; i < curve_points - 1; ++i) {
+            const long double t = static_cast<long double>(i) / curve_points;
             curve[i] = B(t, points, number_of_mid_points);
         }
+        curve[curve_points - 1] = points[number_of_mid_points + 1];
     }
 
 private:
@@ -113,7 +114,7 @@ private:
 
         uint64_t result = 1;
         for (int64_t i = 1; i <= k; ++i) {
-            result *= (n - (k - i));
+            result *= n - (k - i);
             result /= i;
         }
 
@@ -124,6 +125,7 @@ private:
 
     // Fast pow
     static long double pow(long double base, int64_t exp) {
+        if (base == 0) return 0;
         long double result = 1;
         while (exp > 0) {
             if (exp % 2 == 1) {
