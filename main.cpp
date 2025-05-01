@@ -1,31 +1,46 @@
+// Example of usage
+
 #include <iostream>
 #include "bezier.h"
-#include <string>
-#include <cstdlib>
 
-int main(int argc, char* argv[]) {
-    // Arg check
-    if (argc != 4) {
-        std::cerr << "Usage: " << argv[0] << " <x> <y> <curve_points>" << std::endl;
-        return 1;
+int main() {
+    Bezier b;
+
+    // --- 1 ---
+    b.UpdateTarget({15.0, 167});
+    for (int i = 0; i < 30; ++i) {
+        std::cout << b.GetNextPoint() << '\n';
     }
 
-    // Arg parse
-    double x = std::strtod(argv[1], nullptr);
-    double y = std::strtod(argv[2], nullptr);
-    uint64_t curve_points = std::strtoull(argv[3], nullptr, 10);
+    std::cout << "---\n";
 
-    // Generate Bezier curve
-    std::array<Point, Bezier::MaxCurvePoints> curve{};
-    Bezier::Trace({x, y}, curve_points, curve);
+    // --- 2 ---
+    b.UpdateTarget({584, -209});
+    for (int i = 0; i < 45; ++i) {
+        std::cout << b.GetNextPoint() << '\n';
+    }
 
-    // Print the curve
-    bool first_print = false;
-    for (auto& [x, y] : curve) {
-        if (x == 0 && y == 0 && first_print) {
-            break;
-        }
-        std::cout << x << ' ' << y << '\n';
-        first_print = true;
+    std::cout << "---\n";
+
+    // --- 3 ---
+    b.UpdateTarget({944, 181});
+    for (int i = 0; i < 10; ++i) {
+        std::cout << b.GetNextPoint() << '\n';
+    }
+
+    std::cout << "---\n";
+
+    // --- 4 ---
+    b.UpdateTarget({422, -442});
+    for (int i = 0; i < 50; ++i) {
+        std::cout << b.GetNextPoint() << '\n';
+    }
+
+    std::cout << "---\n";
+
+    // --- 5 ---
+    b.UpdateTarget({-34, -145});
+    for (int i = 0; i < 50; ++i) {
+        std::cout << b.GetNextPoint() << '\n';
     }
 }
