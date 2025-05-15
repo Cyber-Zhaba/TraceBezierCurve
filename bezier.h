@@ -63,18 +63,19 @@ public:
     }
 
     // Generate next point on
-    Point GetNextPoint() noexcept {
+    std::pair<double, double> GetNextPoint() noexcept {
         if (offset_idx + 1 == CurvePoints) {
             current = target;
-            return target;
+            return {target.x, current.y};
         }
         long double t = static_cast<long double>(++offset_idx) / CurvePoints;
         current = B(t);
-        return current;
+        return {current.x, current.y};
     }
 
     // Change target Point
-    void UpdateTarget(const Point& new_target) noexcept {
+    void UpdateTarget(const long double x, const long double y) noexcept {
+        Point new_target(x, y);
         if (target == new_target) {
             return;
         }
